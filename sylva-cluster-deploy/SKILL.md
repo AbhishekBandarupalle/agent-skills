@@ -98,12 +98,16 @@ rm -f ~/sylva-core/management-cluster-kubeconfig
 
 ### Deploy
 
+Run the deployment in a tmux window so it persists across disconnects:
+
 ```bash
-cd ~/sylva-core
-BOOTSTRAP_WATCH_TIMEOUT_MIN=$WATCH_TIMEOUT MGMT_WATCH_TIMEOUT_MIN=$WATCH_TIMEOUT ./bootstrap.sh environment-values/my-okd-capm3
+tmux new-session -d -s sylva-deployment \
+  "cd ~/sylva-core && source bin/env && unset KUBECONFIG && BOOTSTRAP_WATCH_TIMEOUT_MIN=$WATCH_TIMEOUT MGMT_WATCH_TIMEOUT_MIN=$WATCH_TIMEOUT ./bootstrap.sh environment-values/my-okd-capm3 2>&1 | tee bootstrap.log; exec bash"
 ```
 
-Background the command and follow the active monitoring procedure below.
+To check on it: `tmux attach -t sylva-deployment`
+
+Follow the active monitoring procedure below while it runs.
 
 ## Step 2B: Repair (fix existing cluster)
 
@@ -259,8 +263,16 @@ git commit -m "<descriptive message>"
 ```
 5. **Ask the user before pushing**: "Fix committed locally. Push to origin?"
 6. Re-run the appropriate script:
-   - Pre-pivot issue → `BOOTSTRAP_WATCH_TIMEOUT_MIN=$WATCH_TIMEOUT MGMT_WATCH_TIMEOUT_MIN=$WATCH_TIMEOUT ./bootstrap.sh environment-values/my-okd-capm3`
-   - Post-pivot issue → `APPLY_WATCH_TIMEOUT_MIN=$WATCH_TIMEOUT ./apply.sh environment-values/my-okd-capm3`
+   - Pre-pivot issue:
+     ```bash
+     tmux new-session -d -s sylva-deployment \
+       "cd ~/sylva-core && source bin/env && unset KUBECONFIG && BOOTSTRAP_WATCH_TIMEOUT_MIN=$WATCH_TIMEOUT MGMT_WATCH_TIMEOUT_MIN=$WATCH_TIMEOUT ./bootstrap.sh environment-values/my-okd-capm3 2>&1 | tee bootstrap.log; exec bash"
+     ```
+   - Post-pivot issue:
+     ```bash
+     tmux new-session -d -s sylva-deployment \
+       "cd ~/sylva-core && source bin/env && unset KUBECONFIG && APPLY_WATCH_TIMEOUT_MIN=$WATCH_TIMEOUT ./apply.sh environment-values/my-okd-capm3 2>&1 | tee apply.log; exec bash"
+     ```
 
 ## Step 6: Retry Loop
 
