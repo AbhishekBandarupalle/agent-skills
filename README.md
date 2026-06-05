@@ -1,6 +1,6 @@
-# Cursor Agent Skills
+# Agent Skills
 
-Cursor agent skills for Sylva infrastructure automation.
+Agent skills for Sylva infrastructure automation.
 
 ## Usage
 
@@ -99,7 +99,7 @@ code-validate/
 |------|---------|---------|
 | `.agent-session.md` | Compact session context — goal, fix attempts, review notes | All agents |
 | `.code-validate-log.md` | Audit trail of approved commits | code-validate |
-| `~/claude-skills/unit-cache.json` | Cached unit investigations + dependency graph | learn-and-suggest |
+| `~/agent-skills/unit-cache.json` | Cached unit investigations + dependency graph | learn-and-suggest |
 
 ## Architecture
 
@@ -213,19 +213,19 @@ flowchart LR
 Git clone the repo to home directory:
 
 ```bash
-git clone https://github.com/AbhishekBandarupalle/claude-skills.git ~/claude-skills
+git clone https://github.com/AbhishekBandarupalle/agent-skills.git ~/agent-skills
 ```
 
 If using Cursor, add one symlink for the dispatcher only:
 
 ```bash
-ln -s ~/claude-skills/sylva ~/.cursor/skills/sylva
+ln -s ~/agent-skills/sylva ~/.cursor/skills/sylva
 ```
 
 If using Claude Code, add one symlink for the dispatcher only:
 
 ```bash
-ln -s ~/claude-skills/sylva ~/.claude/sylva
+ln -s ~/agent-skills/sylva ~/.claude/sylva
 ```
 
 Sub-agent skills (learn-and-suggest, sylva-cluster-deploy, code-validate) do not

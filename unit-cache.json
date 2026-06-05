@@ -147,6 +147,145 @@
       "node_policies": "{{ .Values.sriov.node_policies | include \"preserve-type\" }}"
     }
   },
+  "ingress-nginx-init": {
+    "updated": "2026-06-06T23:15:00Z",
+    "type": "Kustomization",
+    "path": "./kustomize-units/ingress-nginx-init",
+    "phase": "both",
+    "enabled_on": ["rke2", "rke2-capm3"],
+    "description": "creates the default certificate for the ingress-nginx controller",
+    "namespace": "kube-system",
+    "resources": ["Certificate/default-nginx-tls (cert-manager)"],
+    "deps": ["base-deps", "namespace-defs", "sylva-ca"],
+    "reverse_deps": ["ingress-nginx", "metal3-sylva-ca-init"],
+    "kyverno_policies": [],
+    "gaps_okd": ["not needed - OKD uses openshift-default ingress class via built-in Router"],
+    "blockers_okd": [],
+    "internal": true,
+    "enabled_expression": "{{ tuple . \"ingress-nginx\" | include \"unit-enabled\" }}",
+    "postBuild_substitute": {
+      "CLUSTER_IP": "{{ .Values.display_external_ip }}"
+    },
+    "healthChecks": ["Secret/default-nginx-tls in kube-system"]
+  },
+  "ingress-nginx": {
+    "updated": "2026-06-07T03:36:00Z",
+    "type": "HelmRelease",
+    "path": null,
+    "phase": "both",
+    "enabled_on": ["rke2", "rke2-capm3", "my-okd-capm3"],
+    "disabled_on": ["okd (default)", "okd-capm3 (default)", "okd-capm3-virt (default)", "ocp (default)"],
+    "description": "installs Nginx ingress controller",
+    "namespace": "kube-system",
+    "resources": [
+      "DaemonSet/rke2-ingress-nginx-controller",
+      "Service/rke2-ingress-nginx-controller (LoadBalancer)"
+    ],
+    "deps": ["base-deps", "ingress-nginx-init", "metallb-resources", "cni-ready", "openshift-security-context-constraints (cabpoa)"],
+    "reverse_deps": [
+      "ingress-nginx-ready",
+      "vault",
+      "kubevirt-manager",
+      "harbor",
+      "keycloak",
+      "rancher-init",
+      "rancher",
+      "flux-webui-init",
+      "flux-webui",
+      "goldpinger",
+      "os-image-server",
+      "os-image-server-clear-old-ingresses",
+      "minio-logging",
+      "minio-monitoring",
+      "thanos",
+      "policy-reporter",
+      "neuvector"
+    ],
+    "kyverno_policies": [],
+    "gaps_okd": [
+      "not needed - OKD ships built-in Router (HAProxy-based) with IngressClass openshift-default",
+      "all downstream units use conditional depends_on so they skip ingress-nginx when disabled"
+    ],
+    "blockers_okd": [],
+    "maturity": "stable",
+    "helm_repo_url": "https://rke2-charts.rancher.io",
+    "helm_chart": "rke2-ingress-nginx",
+    "helm_chart_versions": {
+      "4.14.303": ">=1.32.0"
+    },
+    "helmrelease_spec": {
+      "releaseName": "rke2-ingress-nginx",
+      "targetNamespace": "kube-system",
+      "driftDetection": "enabled",
+      "upgrade.force": true
+    },
+    "controller_config": {
+      "kind": "DaemonSet",
+      "nodeSelector": "node-role.kubernetes.io/control-plane",
+      "service.loadBalancerClass": "{{ .Values._internal.loadBalancerClass }}",
+      "hostPort.enabled": false,
+      "ingressClassResource.default": true,
+      "ssl-protocols": "TLSv1.2 TLSv1.3",
+      "worker-processes": 8,
+      "terminationGracePeriodSeconds": 90,
+      "default-ssl-certificate": "kube-system/default-nginx-tls"
+    },
+    "okd_adaptation": {
+      "default_strategy": "disable - OKD built-in Router replaces this unit entirely",
+      "alternative_strategy": "coexist - enable ingress-nginx alongside OpenShift Router, nginx handles Sylva Ingress objects",
+      "ingressClassName_switch": "cabpoa -> openshift-default (default), override _internal.ingressClassName: nginx for coexistence",
+      "env_values_pattern_default": "units.ingress-nginx.enabled: false",
+      "env_values_pattern_coexist": "units.ingress-nginx.enabled: true + _internal.ingressClassName: nginx",
+      "scc_required": true,
+      "scc_name": "sylva-ingress-nginx-scc",
+      "scc_capabilities": ["NET_BIND_SERVICE"],
+      "scc_serviceaccount": "system:serviceaccount:kube-system:rke2-ingress-nginx",
+      "scc_component_path": "kustomize-units/openshift-security-context-constraints/components/ingress-nginx/",
+      "scc_wiring": "conditional _component in openshift-security-context-constraints unit: tuple components/ingress-nginx (unit-enabled ingress-nginx)",
+      "depends_on_scc": "openshift-security-context-constraints dep added to ingress-nginx (conditional on cabpoa)",
+      "downstream_impact": "all dependent units use conditional deps; on coexistence mode they proceed with ingress-nginx",
+      "kyverno_component": "okd-ingress-reencrypt added to kyverno-policies on cabpoa for re-encrypt route support",
+      "coexistence_notes": "OpenShift Router stays active for Routes and OKD internals; nginx handles standard Ingress with class nginx"
+    }
+  },
+  "ingress-nginx-ready": {
+    "updated": "2026-06-06T23:15:00Z",
+    "type": "Kustomization",
+    "path": "dummy",
+    "phase": "both",
+    "enabled_on": ["rke2", "rke2-capm3"],
+    "description": "checks that ingress-nginx controller is ready",
+    "namespace": "kube-system",
+    "resources": [],
+    "deps": ["ingress-nginx"],
+    "reverse_deps": [
+      "vault",
+      "kubevirt-manager",
+      "harbor",
+      "keycloak",
+      "rancher-init",
+      "rancher",
+      "flux-webui-init",
+      "flux-webui",
+      "goldpinger",
+      "os-image-server",
+      "os-image-server-clear-old-ingresses",
+      "minio-logging",
+      "minio-monitoring",
+      "thanos",
+      "policy-reporter",
+      "neuvector"
+    ],
+    "kyverno_policies": [],
+    "gaps_okd": [],
+    "blockers_okd": [],
+    "internal": true,
+    "enabled_expression": "{{ tuple . \"ingress-nginx\" | include \"unit-enabled\" }}",
+    "healthChecks": ["DaemonSet/rke2-ingress-nginx-controller in kube-system"],
+    "bootstrap_override": {
+      "labels": {"suspend-on-pivot": "yes"}
+    }
+  },
   "_dependency_graph": {
     "sriov": {
       "depends_on": [],
@@ -189,9 +328,51 @@
       "depends_on": ["rancher"],
       "depended_by": [],
       "notes": "contains sriovnetworks RoleTemplates (view-sriovnetworks, manage-sriovnetworks)"
+    },
+    "ingress-nginx-init": {
+      "depends_on": ["namespace-defs", "sylva-ca"],
+      "depended_by": ["ingress-nginx", "metal3-sylva-ca-init"]
+    },
+    "ingress-nginx": {
+      "depends_on": ["ingress-nginx-init", "metallb-resources", "cni-ready", "openshift-security-context-constraints (cabpoa)"],
+      "depended_by": ["ingress-nginx-ready", "vault", "kubevirt-manager", "harbor", "keycloak", "rancher-init", "rancher", "flux-webui-init", "flux-webui", "goldpinger", "os-image-server", "os-image-server-clear-old-ingresses", "minio-logging", "minio-monitoring", "thanos", "policy-reporter", "neuvector"],
+      "notes": "disabled on OKD/OCP by default; can be enabled for coexistence with OpenShift Router (requires SCC + _internal.ingressClassName override)"
+    },
+    "ingress-nginx-ready": {
+      "depends_on": ["ingress-nginx"],
+      "depended_by": ["vault", "kubevirt-manager", "harbor", "keycloak", "rancher-init", "rancher", "flux-webui-init", "flux-webui", "goldpinger", "os-image-server", "os-image-server-clear-old-ingresses", "minio-logging", "minio-monitoring", "thanos", "policy-reporter", "neuvector"]
     }
   },
   "_distribution_comparison": {
+    "ingress-nginx": {
+      "summary": "RKE2/kubeadm uses NGINX ingress controller (rke2-ingress-nginx from Rancher charts); OKD/OCP disables it by default but can enable for coexistence with built-in Router",
+      "rke2_behavior": {
+        "ingressClassName": "nginx",
+        "controller_type": "DaemonSet on control-plane nodes",
+        "service_type": "LoadBalancer (via MetalLB)",
+        "tls": "cert-manager Certificate via sylva-ca ClusterIssuer"
+      },
+      "okd_behavior_default": {
+        "ingressClassName": "openshift-default",
+        "controller_type": "built-in HAProxy Router (openshift-ingress namespace)",
+        "service_type": "managed by cluster-ingress-operator",
+        "tls": "routes with re-encrypt via kyverno okd-ingress-reencrypt component",
+        "unit_disabled": true
+      },
+      "okd_behavior_coexistence": {
+        "ingressClassName": "nginx (override _internal.ingressClassName)",
+        "controller_type": "DaemonSet on control-plane nodes (same as RKE2)",
+        "service_type": "LoadBalancer (via MetalLB)",
+        "tls": "cert-manager Certificate via sylva-ca ClusterIssuer (same as RKE2)",
+        "scc": "sylva-ingress-nginx-scc (NET_BIND_SERVICE only)",
+        "openshift_router": "stays active for Routes and OKD internals",
+        "unit_enabled": true
+      },
+      "switch_logic": "_internal.ingressClassName = cabpoa ? openshift-default : nginx (overridable in env values)",
+      "units_active_rke2": ["ingress-nginx-init", "ingress-nginx", "ingress-nginx-ready"],
+      "units_active_okd_default": [],
+      "units_active_okd_coexist": ["ingress-nginx-init", "ingress-nginx", "ingress-nginx-ready"]
+    },
     "sriov": {
       "summary": "same SUSE Edge operator and cattle-sriov-system namespace on all distros",
       "okd_only_overrides": {
@@ -200,6 +381,139 @@
       },
       "units_active": ["sriov-crd", "sriov-init", "sriov-kyverno-policies", "sriov-network-operator", "sriov-resources"]
     }
+  },
+  "coredns": {
+    "updated": "2026-06-07T03:49:00Z",
+    "type": "HelmRelease",
+    "path": null,
+    "phase": "management",
+    "enabled_on": ["rke2 (cabpr)", "kubeadm (cabpk)"],
+    "disabled_on": ["okd (cabpoa)"],
+    "description": "installs rke2-coredns",
+    "namespace": "kube-system",
+    "resources": ["Deployment/rke2-coredns-rke2-coredns"],
+    "deps": ["base-deps", "coredns-config", "rke2-calico-coredns-cleanup"],
+    "reverse_deps": [],
+    "kyverno_policies": [],
+    "maturity": "stable",
+    "helm_repo_url": "https://rke2-charts.rancher.io",
+    "helm_chart": "rke2-coredns",
+    "helm_chart_versions": {"1.45.201": ">=1.32.0"},
+    "enabled_expression": "cabpk OR cabpr only",
+    "helmrelease_spec": {
+      "releaseName": "rke2-coredns",
+      "targetNamespace": "kube-system",
+      "values": {"deployment": {"skipConfig": "true"}}
+    },
+    "notes": "on kubeadm (cabpk) this is just a dummy to ensure upgrade from Sylva 1.3 prunes correctly"
+  },
+  "coredns-config": {
+    "updated": "2026-06-07T03:49:00Z",
+    "type": "Kustomization",
+    "path": "./kustomize-units/coredns",
+    "phase": "management",
+    "enabled_on": ["rke2 (cabpr)", "kubeadm (cabpk)"],
+    "disabled_on": ["okd (cabpoa)"],
+    "description": "configures DNS inside cluster via CoreDNS ConfigMap patch",
+    "namespace": "kube-system",
+    "resources": ["ConfigMap/coredns (or rke2-coredns-rke2-coredns)"],
+    "deps": ["base-deps", "rke2-calico-coredns-cleanup"],
+    "reverse_deps": ["coredns", "flux-webui"],
+    "kyverno_policies": [],
+    "internal": true,
+    "enabled_expression": "{{ .Values.cluster.capi_providers.bootstrap_provider | ne \"cabpoa\" }}",
+    "corefile_config": {
+      "cluster_domain_forward": "forward ${CLUSTER_DOMAIN} ${CLUSTER_VIRTUAL_IP}",
+      "note": "forwards cluster_domain queries to k8s-gateway LB IP"
+    }
+  },
+  "coredns-custom-hosts-import": {
+    "updated": "2026-06-07T03:49:00Z",
+    "type": "Kustomization",
+    "path": "./kustomize-units/coredns-custom-hosts-import",
+    "phase": "management",
+    "enabled_on": ["all (when neuvector or cabpoa)"],
+    "description": "creates ConfigMaps with workload cluster DNS records for CoreDNS import",
+    "namespace": "sylva-system",
+    "resources": ["ConfigMap/coredns-custom-<cluster-name> (labeled sylva.org/coredns-custom-hosts-import)"],
+    "deps": ["base-deps"],
+    "reverse_deps": [],
+    "kyverno_policies": ["coredns-custom-hosts-import (kyverno component)", "coredns-custom-hosts-import-okd-mgmt (kyverno component)"],
+    "internal": true,
+    "enabled_expression": "neuvector enabled OR cabpoa",
+    "components": {
+      "okd": "adds zone/upstream/hosts data for OKD workload cluster .apps domain",
+      "neuvector-federation": "adds neuvector federation managed hostname entry"
+    },
+    "postBuild_substitute": {
+      "CLUSTER_NAME": "{{ .Values.cluster.name }}",
+      "CLUSTER_VIRTUAL_IP": "from _internal or capo-cluster-resources ConfigMap",
+      "CLUSTER_OKD_BASE_DOMAIN": "{{ .Values.cluster.openshift.baseDomain }}",
+      "CLUSTER_DOMAIN": "{{ .Values.cluster_domain }}"
+    }
+  },
+  "coredns-operator-config": {
+    "updated": "2026-06-07T03:58:00Z",
+    "type": "Kustomization (kube-job)",
+    "path": null,
+    "phase": "management + workload",
+    "enabled_on": ["okd (cabpoa)"],
+    "disabled_on": ["rke2", "kubeadm"],
+    "description": "patches OpenShift dns.operator/default CR to forward cluster domain queries to k8s-gateway",
+    "namespace": "openshift-dns-operator",
+    "resources": ["Job (kube-job that runs kubectl patch)"],
+    "deps": ["base-deps", "k8s-gateway", "openshift-security-context-constraints"],
+    "reverse_deps": [],
+    "kyverno_policies": [],
+    "internal": true,
+    "enabled_expression": "{{ .Values.cluster.capi_providers.bootstrap_provider | eq \"cabpoa\" }}",
+    "management_cluster_behavior": {
+      "script": "scripts/coredns-operator-config-mgmt.sh.tpl",
+      "patches_dns_cr": "adds server 'sylva-cluster-domain' forwarding cluster_domain to openshift.extra_virtual_ip (k8s-gateway LB)",
+      "depends_on": ["k8s-gateway", "openshift-security-context-constraints"],
+      "clusterRoleBinding": "openshift-dns-operator (grants job permission to patch DNS CR)"
+    },
+    "workload_cluster_behavior": {
+      "script": "scripts/coredns-operator-config.sh.tpl",
+      "patches_dns_cr": "adds server 'management' forwarding mgmt_cluster_domain to mgmt_cluster_dns_ip",
+      "purpose": "allows workload cluster to resolve management cluster services (e.g. rancher, keycloak)"
+    },
+    "defined_in": ["charts/sylva-units/management.values.yaml", "charts/sylva-units/workload-cluster.values.yaml"]
+  },
+  "_coredns_okd_adaptation": {
+    "summary": "OKD uses the OpenShift DNS Operator to manage CoreDNS; Sylva adapts by patching the DNS operator CR instead of the ConfigMap directly",
+    "rke2_dns_flow": {
+      "1_coredns_unit": "HelmRelease deploys rke2-coredns with skipConfig:true",
+      "2_coredns_config": "Kustomization patches ConfigMap with Corefile forwarding cluster_domain to k8s-gateway",
+      "3_kyverno_custom_hosts": "ClusterPolicy watches labeled ConfigMaps, merges workload cluster host entries into CoreDNS ConfigMap, removes items restriction from volume mount, restarts Deployment",
+      "4_k8s_gateway": "separate CoreDNS with k8s_gateway plugin resolves Ingress FQDNs to their LB IPs"
+    },
+    "okd_dns_flow": {
+      "1_no_coredns_unit": "coredns and coredns-config units are DISABLED (cabpoa excluded)",
+      "2_dns_operator": "OpenShift DNS Operator manages CoreDNS in openshift-dns namespace",
+      "3_k8s_gateway": "still deployed — provides external FQDN resolution via LB",
+      "4_coredns_config_substitute": "coredns-config not needed — DNS Operator handles Corefile",
+      "5_kyverno_okd_mgmt_policy": "ClusterPolicy update-dns-operator-workload-zones patches dns.operator.openshift.io/default to add forwarding zones for workload clusters pointing to k8s-gateway",
+      "6_forwarding_zones": "DNS Operator reconfigures CoreDNS to forward workload.baseDomain queries to k8s-gateway LB IP"
+    },
+    "kyverno_policies": {
+      "coredns-custom-hosts-import": {
+        "enabled_on": "non-OKD clusters (neuvector OR cabpoa) AND NOT cabpoa mgmt",
+        "what_it_does": "patches rke2-coredns ConfigMap with workload host entries, removes items from volume mount, triggers Deployment restart",
+        "configmap_name_var": "COREDNS_CONFIGMAP_NAME (default: coredns)",
+        "deployment_name_var": "COREDNS_DEPLOYMENT_NAME (default: coredns)"
+      },
+      "coredns-custom-hosts-import-okd-mgmt": {
+        "enabled_on": "OKD management clusters (cabpoa AND NOT bootstrap)",
+        "what_it_does": "patches dns.operator.openshift.io/default CR to add/remove forwarding zones for workload clusters",
+        "watches": "ConfigMaps with label sylva.org/coredns-custom-hosts-import=true",
+        "on_create_update": "adds spec.servers entry with zone and forwardPlugin.upstreams pointing to workload VIP",
+        "on_delete": "filters out removed entries, preserves sylva-cluster-domain and valid CMs",
+        "rbac": "kyverno needs get/list/watch/patch/update on operator.openshift.io/dnses"
+      }
+    },
+    "key_difference": "RKE2 patches CoreDNS ConfigMap directly; OKD patches the DNS Operator CR which then manages CoreDNS config",
+    "shared_components": ["k8s-gateway (LB service for FQDN resolution)", "coredns-custom-hosts-import unit (creates the trigger ConfigMaps)"]
   },
   "_metadata": {
     "last_full_scan": "2026-06-05T11:45:00Z",

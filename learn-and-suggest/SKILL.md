@@ -20,7 +20,7 @@ Investigates Sylva units across distributions and proposes OKD adaptation paths.
 
 ## Unit Cache
 
-Results are persisted to `~/claude-skills/unit-cache.json` for fast repeat lookups.
+Results are persisted to `~/agent-skills/unit-cache.json` for fast repeat lookups.
 
 **On query**: check cache first. If unit exists and user didn't say "update" or
 "refresh", return cached data immediately. Otherwise run full investigation.
@@ -109,7 +109,7 @@ kubectl get all -n <target-namespace>
 ## After Investigation
 
 1. **Update cache**: write/overwrite the unit entry and `_dependency_graph` in
-   `~/claude-skills/unit-cache.json`.
+   `~/agent-skills/unit-cache.json`.
 
 2. **Present summary** to user (use tables for distribution behavior, deps).
 
@@ -158,7 +158,7 @@ changes: <file list with action>
 subagent_type: generalPurpose
 description: "Deploy OKD adaptation for <unit>"
 prompt: |
-  Read the skill at ~/claude-skills/sylva-cluster-deploy/SKILL.md and follow it.
+  Read the skill at ~/agent-skills/sylva-cluster-deploy/SKILL.md and follow it.
   Working directory: ~/sylva-core
   Adaptation decision is in ~/sylva-core/.agent-session.md.
   Implement the changes: <list from chosen option>

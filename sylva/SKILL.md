@@ -52,7 +52,7 @@ Parse the `/sylva` command and route:
 
 Route:
 ```
-Read the skill at ~/claude-skills/learn-and-suggest/SKILL.md and follow it.
+Read the skill at ~/agent-skills/learn-and-suggest/SKILL.md and follow it.
 Mode: learn-only
 Unit: <unit name>
 Working directory: ~/sylva-core
@@ -72,7 +72,7 @@ For **enable/adapt**: route to learn-and-suggest in full pipeline mode.
 Pass the target cluster type so the deploy agent knows which mode file to use.
 
 ```
-Read the skill at ~/claude-skills/learn-and-suggest/SKILL.md and follow it.
+Read the skill at ~/agent-skills/learn-and-suggest/SKILL.md and follow it.
 Mode: learn-suggest-deploy
 Unit: <unit name>
 Target: <management | workload>
@@ -98,7 +98,7 @@ For **disable**: edit the env values file directly — no pipeline needed.
 
 Route:
 ```
-Read the skill at ~/claude-skills/sylva-cluster-deploy/SKILL.md and follow it.
+Read the skill at ~/agent-skills/sylva-cluster-deploy/SKILL.md and follow it.
 Mode: <Management Redeploy | Workload Deploy>
 Management env: <SYLVA_MGMT_ENV or default>
 Workload env: environment-values/workload-clusters/<type>
@@ -117,7 +117,7 @@ Working directory: ~/sylva-core
 
 Route:
 ```
-Read the skill at ~/claude-skills/sylva-cluster-deploy/SKILL.md and follow it.
+Read the skill at ~/agent-skills/sylva-cluster-deploy/SKILL.md and follow it.
 Mode: <Management Repair | Workload Repair>
 Management env: <SYLVA_MGMT_ENV or default>
 Workload env: <SYLVA_WC_ENV or from command>
@@ -127,7 +127,7 @@ Working directory: ~/sylva-core
 
 ## Cache Update Rule
 
-**Always update `~/claude-skills/unit-cache.json` whenever the user asks
+**Always update `~/agent-skills/unit-cache.json` whenever the user asks
 about units** — whether it's a dependency lookup, a learn command, an
 enable/disable, or any conversation that reveals new unit information
 (e.g. OKD adaptation patterns, env values overrides, live state findings).

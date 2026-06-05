@@ -68,7 +68,7 @@ git commit -m "<descriptive message>"
 subagent_type: generalPurpose
 description: "Validate commit before push"
 prompt: |
-  Read the skill at ~/claude-skills/code-validate/SKILL.md and follow it.
+  Read the skill at ~/agent-skills/code-validate/SKILL.md and follow it.
   Validate the HEAD commit in ~/sylva-core.
   Issue being solved: <issue description>
   Return CODE_VALIDATE_RESULT with your verdict.
